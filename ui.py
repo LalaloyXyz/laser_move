@@ -26,6 +26,8 @@ class PositionUI:
         self.pos_text.pack(padx=5, pady=5)
 
         self.selected_id: Optional[int] = None
+        self.isTarget: int = 0
+
         if select == 1:
             self.mode: str = "head"
         elif select == 2:
@@ -49,6 +51,7 @@ class PositionUI:
         target_track = None
         other_tracks: List = []
 
+        # --- Pick target ---
         for t in tracks:
             if not t.is_confirmed() or t.time_since_update > 0:
                 continue
@@ -58,36 +61,47 @@ class PositionUI:
                 other_tracks.append(t)
 
         if target_track:
+            # --- Calculate position ---
             l, t_, r, b = map(int, target_track.to_ltrb())
             cx = (l + r) // 2
-            if self.mode == "head":
-                y_point = t_
-            else:
-                y_point = (t_ + b) // 2
+            y_point = t_ if self.mode == "head" else (t_ + b) // 2
             nx = (cx / w) * 2 - 1
             ny = -((y_point / h) * 2 - 1)
+
             self.pos_text.insert(
                 tk.END,
                 f"ID {target_track.track_id} ({self.mode}): x={nx:.2f}, y={ny:.2f}\n",
                 "target"
             )
 
-            # --- Send head via serial ---
+            # --- Target flag ---
+            self.isTarget = 0 if target_track.track_id == 0 else 1
+
+            # --- Send with updated coords ---
             if self.serial and self.serial.is_open:
-                msg = f"{nx:.2f},{ny:.2f}\n"
+                msg = f"{nx:.2f},{ny:.2f},{self.isTarget}\n"
                 try:
                     self.serial.write(msg.encode())
                     print(f"[TX] {msg.strip()}")
                 except Exception as e:
                     print(f"[ERR] Serial write: {e}")
 
+        else:
+            # --- No target detected ---
+            self.isTarget = 0
+            if self.serial and self.serial.is_open:
+                msg = f"0.00,0.00,{self.isTarget}\n"
+                try:
+                    self.serial.write(msg.encode())
+                    print(f"[TX] {msg.strip()}")
+                except Exception as e:
+                    print(f"[ERR] Serial write: {e}")
+
+        # --- Show other tracks ---
         for t in other_tracks:
             l, t_, r, b = map(int, t.to_ltrb())
             cx = (l + r) // 2
-            if self.mode == "head":
-                y_point = t_
-            else:
-                y_point = (t_ + b) // 2
+            y_point = t_ if self.mode == "head" else (t_ + b) // 2
             nx = (cx / w) * 2 - 1
             ny = -((y_point / h) * 2 - 1)
             self.pos_text.insert(
@@ -96,7 +110,6 @@ class PositionUI:
 
         # Highlight selected track in bright green
         self.pos_text.tag_config("target", foreground="#00ff00")
-
         self.root.update_idletasks()
 
     def toggle_mode(self) -> None:
