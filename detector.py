@@ -20,8 +20,9 @@ class PersonDetector:
             # Resolve bundled model relative to this file
             model_path = str(Path(__file__).resolve().parent / "Model" / "yolo11n.pt")
         self.model = YOLO(model_path)
-        self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        self.use_half = bool(torch.cuda.is_available())
+        # Force CPU to match user's environment preference
+        self.device = "cpu"
+        self.use_half = False
 
     def detect(self, frame) -> List[Detection]:
         """Return person detections in [x, y, w, h] format with confidences."""
@@ -29,7 +30,8 @@ class PersonDetector:
         if frame is None:
             return []
 
-        results = self.model(frame, device=self.device, half=self.use_half, verbose=False)[0]
+        # Use smaller inference settings on CPU for speed and filter to person class
+        results = self.model(frame, device=self.device, half=self.use_half, verbose=False, imgsz=640, classes=[0])[0]
         detections: List[Detection] = []
 
         for box, cls, conf in zip(results.boxes.xyxy, results.boxes.cls, results.boxes.conf):

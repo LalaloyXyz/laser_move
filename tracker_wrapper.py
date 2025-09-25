@@ -13,11 +13,11 @@ class MultiObjectTracker:
                  max_iou_distance: float = 0.6) -> None:
         # If deep_sort_realtime was installed with a Torch embedder, this will pick GPU automatically
         # by reading torch.cuda.is_available(). Expose device explicitly to be safe.
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        # Force CPU embedder for consistent CPU-only execution
         self._tracker = DeepSort(max_age=max_age,
                                  n_init=n_init,
                                  max_iou_distance=max_iou_distance,
-                                 embedder_gpu=(device == 'cuda'))
+                                 embedder_gpu=False)
 
     def update(self, detections: List, frame: np.ndarray):
         """Update tracker and return confirmed tracks only."""

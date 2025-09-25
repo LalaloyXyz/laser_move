@@ -3,7 +3,7 @@ import tkinter as tk
 import serial
 import time
 
-select = int(input("Select UI mode (1: head, 2:body): "))
+select = int(input("Select UI mode (1: head, 2: body): "))
 
 class PositionUI:
     def __init__(self, title: str = "Positions",
@@ -61,16 +61,17 @@ class PositionUI:
                 other_tracks.append(t)
 
         if target_track:
-            # --- Calculate position ---
+            # --- Target always uses body center ---
             l, t_, r, b = map(int, target_track.to_ltrb())
             cx = (l + r) // 2
-            y_point = t_ if self.mode == "head" else (t_ + b) // 2
+            y_point = (t_ + b) // 2  # body center
+
             nx = (cx / w) * 2 - 1
-            ny = -((y_point / h) * 2 - 1)
+            ny = -((y_point / h) * 1.2 - 1)
 
             self.pos_text.insert(
                 tk.END,
-                f"ID {target_track.track_id} ({self.mode}): x={nx:.2f}, y={ny:.2f}\n",
+                f"ID {target_track.track_id} (body center): x={nx:.2f}, y={ny:.2f}\n",
                 "target"
             )
 
@@ -85,7 +86,6 @@ class PositionUI:
                     print(f"[TX] {msg.strip()}")
                 except Exception as e:
                     print(f"[ERR] Serial write: {e}")
-
         else:
             # --- No target detected ---
             self.isTarget = 0
@@ -102,7 +102,7 @@ class PositionUI:
             l, t_, r, b = map(int, t.to_ltrb())
             cx = (l + r) // 2
             y_point = t_ if self.mode == "head" else (t_ + b) // 2
-            nx = (cx / w) * 2 - 1
+            nx = (cx / w) * 1.5 - 1
             ny = -((y_point / h) * 2 - 1)
             self.pos_text.insert(
                 tk.END, f"ID {t.track_id}: x={nx:.2f}, y={ny:.2f}\n"
