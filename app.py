@@ -11,11 +11,12 @@ class TrackingApp:
     def __init__(self,
                  camera_index: int = 0,
                  model_path: Optional[str] = None,
-                 confidence_threshold: float = 0.4) -> None:
+                 confidence_threshold: float = 0.4,
+                 ui_mode: str = "head") -> None:
         self.cap = cv2.VideoCapture(camera_index)
         self.detector = PersonDetector(model_path=model_path, confidence_threshold=confidence_threshold)
         self.tracker = MultiObjectTracker()
-        self.ui = PositionUI()
+        self.ui = PositionUI(detector=self.detector, initial_mode=ui_mode)
         self.selected_id: Optional[int] = None
 
         cv2.namedWindow("Tracker")
@@ -51,6 +52,9 @@ class TrackingApp:
                 detections = self.detector.detect(frame)
                 tracks = self.tracker.update(detections, frame)
                 self._latest_tracks = tracks
+                
+                # Draw keypoints (skeleton)
+                frame = self.detector.draw_keypoints(frame)
 
                 # Find target track for point marker
                 target_track = None
@@ -70,19 +74,26 @@ class TrackingApp:
                 if target_track:
                     l, t_, r, b = map(int, target_track.to_ltrb())
                     cx = (l + r) // 2
-                    # Use same logic as UI for y-point calculation
+                    
+                    # Calculate target point based on mode
                     if self.ui.mode == "head":
-                        # Estimate head position: top 1/4 of the person's height
-                        person_height = b - t_
-                        y_point = t_ + (person_height // 4)
+                        # Try to get precise head position from pose keypoints
+                        detection_box = [l, t_, r - l, b - t_]
+                        head_pos = self.detector.get_head_position(frame, detection_box)
+                        if head_pos:
+                            cx, y_point = head_pos
+                        else:
+                            # Fallback to estimation
+                            person_height = b - t_
+                            y_point = t_ + (person_height // 4)
                     else:
                         y_point = (t_ + b) // 2
                     
                     # Draw simple point marker
-                    cv2.circle(frame, (cx, y_point), 6, (0, 0, 255), -1)  # Filled red circle
+                    cv2.circle(frame, (cx, y_point), 6, (0, 255, 255), -1)
                     # Add mode label
                     cv2.putText(frame, f"TARGET ({self.ui.mode})", (cx - 40, y_point - 25), 
-                              cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                              cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
 
                 cv2.imshow("Tracker", frame)
                 self.ui.update_positions(tracks, frame.shape)

@@ -3,11 +3,9 @@ import tkinter as tk
 import serial
 import time
 
-select = int(input("Select UI mode (1: head, 2: body): "))
-
 class PositionUI:
     def __init__(self, title: str = "Positions",
-                 port: str = "/dev/ttyACM0", baud: int = 115200) -> None:
+                 port: str = "/dev/ttyACM0", baud: int = 115200, detector=None, initial_mode: str = "head") -> None:
         self.root = tk.Tk()
         self.root.title(title)
         self.root.configure(bg="#2b2b2b")
@@ -27,11 +25,8 @@ class PositionUI:
 
         self.selected_id: Optional[int] = None
         self.isTarget: int = 0
-
-        if select == 1:
-            self.mode: str = "head"
-        elif select == 2:
-            self.mode: str = "body"
+        self.detector = detector
+        self.mode: str = initial_mode
 
         # --- Setup Serial ---
         try:
@@ -65,9 +60,20 @@ class PositionUI:
             l, t_, r, b = map(int, target_track.to_ltrb())
             cx = (l + r) // 2
             if self.mode == "head":
-                # Estimate head position: top 1/4 of the person's height
-                person_height = b - t_
-                y_point = t_ + (person_height // 4)
+                # Try to get precise head position from pose model if available
+                if self.detector and hasattr(self.detector, 'get_head_position'):
+                    detection_box = [l, t_, r - l, b - t_]
+                    head_pos = self.detector.get_head_position(None, detection_box)  # Frame not needed for detection model
+                    if head_pos:
+                        cx, y_point = head_pos
+                    else:
+                        # Fallback to estimation
+                        person_height = b - t_
+                        y_point = t_ + (person_height // 4)
+                else:
+                    # Estimate head position: top 1/4 of the person's height
+                    person_height = b - t_
+                    y_point = t_ + (person_height // 4)
             else:
                 y_point = (t_ + b) // 2
 
