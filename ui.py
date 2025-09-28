@@ -61,17 +61,22 @@ class PositionUI:
                 other_tracks.append(t)
 
         if target_track:
-            # --- Target always uses body center ---
+            # --- Calculate position based on mode ---
             l, t_, r, b = map(int, target_track.to_ltrb())
             cx = (l + r) // 2
-            y_point = (t_ + b) // 2  # body center
+            if self.mode == "head":
+                # Estimate head position: top 1/4 of the person's height
+                person_height = b - t_
+                y_point = t_ + (person_height // 4)
+            else:
+                y_point = (t_ + b) // 2
 
             nx = (cx / w) * 2 - 1
-            ny = -((y_point / h) * 1.2 - 1)
+            ny = -((y_point / h) * 2 - 1)
 
             self.pos_text.insert(
                 tk.END,
-                f"ID {target_track.track_id} (body center): x={nx:.2f}, y={ny:.2f}\n",
+                f"ID {target_track.track_id} ({self.mode}): x={nx:.2f}, y={ny:.2f}\n",
                 "target"
             )
 
@@ -101,7 +106,12 @@ class PositionUI:
         for t in other_tracks:
             l, t_, r, b = map(int, t.to_ltrb())
             cx = (l + r) // 2
-            y_point = t_ if self.mode == "head" else (t_ + b) // 2
+            if self.mode == "head":
+                # Estimate head position: top 1/4 of the person's height
+                person_height = b - t_
+                y_point = t_ + (person_height // 4)
+            else:
+                y_point = (t_ + b) // 2
             nx = (cx / w) * 1.5 - 1
             ny = -((y_point / h) * 2 - 1)
             self.pos_text.insert(

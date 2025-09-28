@@ -52,12 +52,37 @@ class TrackingApp:
                 tracks = self.tracker.update(detections, frame)
                 self._latest_tracks = tracks
 
+                # Find target track for point marker
+                target_track = None
+                for t in tracks:
+                    if self.selected_id is not None and t.track_id == self.selected_id and t.is_confirmed() and t.time_since_update == 0:
+                        target_track = t
+                        break
+
                 for t in tracks:
                     l, t_, r, b = map(int, t.to_ltrb())
                     tid = t.track_id
                     color = (0, 255, 0) if (self.selected_id is not None and tid == self.selected_id) else (128, 128, 128)
                     cv2.rectangle(frame, (l, t_), (r, b), color, 2)
                     cv2.putText(frame, f"ID {tid}", (l, t_ - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+
+                # Draw target point marker
+                if target_track:
+                    l, t_, r, b = map(int, target_track.to_ltrb())
+                    cx = (l + r) // 2
+                    # Use same logic as UI for y-point calculation
+                    if self.ui.mode == "head":
+                        # Estimate head position: top 1/4 of the person's height
+                        person_height = b - t_
+                        y_point = t_ + (person_height // 4)
+                    else:
+                        y_point = (t_ + b) // 2
+                    
+                    # Draw simple point marker
+                    cv2.circle(frame, (cx, y_point), 6, (0, 0, 255), -1)  # Filled red circle
+                    # Add mode label
+                    cv2.putText(frame, f"TARGET ({self.ui.mode})", (cx - 40, y_point - 25), 
+                              cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
                 cv2.imshow("Tracker", frame)
                 self.ui.update_positions(tracks, frame.shape)

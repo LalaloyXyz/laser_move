@@ -18,7 +18,7 @@ class PersonDetector:
         self.confidence_threshold = confidence_threshold
         if model_path is None:
             # Resolve bundled model relative to this file
-            model_path = str(Path(__file__).resolve().parent / "Model" / "yolo11n.pt")
+            model_path = str(Path(__file__).resolve().parent / "Model" / "yolo12n.pt")
         self.model = YOLO(model_path)
         # Force CPU to match user's environment preference
         self.device = "cpu"
@@ -31,7 +31,9 @@ class PersonDetector:
             return []
 
         # Use smaller inference settings on CPU for speed and filter to person class
-        results = self.model(frame, device=self.device, half=self.use_half, verbose=False, imgsz=640, classes=[0])[0]
+        # Power-saving optimizations: smaller image, lower confidence, single class
+        results = self.model(frame, device=self.device, half=self.use_half, verbose=False, 
+                           imgsz=480, classes=[0], conf=0.3, iou=0.5)[0]
         detections: List[Detection] = []
 
         for box, cls, conf in zip(results.boxes.xyxy, results.boxes.cls, results.boxes.conf):
